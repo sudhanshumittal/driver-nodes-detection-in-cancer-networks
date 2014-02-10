@@ -1,0 +1,48 @@
+12c12
+< #define PEARSON_FACTOR 0.6
+---
+> #define PEARSON_FACTOR 0.7
+35c35
+< 			char label(){
+---
+>             char label(){
+55d54
+<     int component;
+147,150d145
+< 	int component_count ;
+<  	graph(){
+< 		component_count = 0;
+< 	}
+189,192c184,185
+< 					int satisfying_value =  satisfy(curr->val(), next.label()); 
+<                   	next.n->setVal(satisfying_value);
+<                     next.n->component = (satisfying_value==root->val())? root->component:root->component+1;
+< 					q.push(next.n);
+---
+>                   	next.n->setVal( satisfy(curr->val(), next.label()) );
+>                     q.push(next.n);
+202,203d194
+< 						
+<                     	next.n->component = (satisfyingVal==root->val())? root->component:root->component+1;
+223,225c214
+<         component_count+=2;
+< 		root->component = component_count;
+< 		return bfs(root, init);
+---
+>         return bfs(root, init);
+229,230c218
+<         root->component = 0;
+< 		return bfs(root, init);
+---
+>         return bfs(root, init);
+277,279c265,266
+<         fp<<"number_of_components "<<component_count/2 + 1 <<endl;
+< 		for(itNodes i = nodes.begin(); i != nodes.end(); i++){
+< 			fp<<i->second->name()<<"\t"<<i->second->val()<<"\t"<<i->second->component<<endl;//"\t"<<i->second->val(1)<<endl;
+---
+>         for(itNodes i = nodes.begin(); i != nodes.end(); i++){
+> 			fp<<i->second->name()<<"\t"<<i->second->val()<<endl;//"\t"<<i->second->val(1)<<endl;
+359c346
+< 	cout<<"number of components = "<<g.component_count<<endl;	
+---
+> 	
