@@ -52,7 +52,7 @@ private:
    				 	//char label_; //edge label
 
     std::map<string, edge> adj_;//adjacency list or list of edges
-    bool visited_;  //if node is visited in bfs
+    int  visited_;  //if node is visited(2)/in queue(1)/ unvisited(0) in bfs
     typedef  std::map<string, edge>::iterator it; //iterator over adj_ type
 
 public:
@@ -60,7 +60,7 @@ public:
     int component;
     node(string s){
         name_ =s;
-        visited_= false;
+        visited_= 0;
         value = 2;
         //value[0] = 2;
         //value[1] = 2;
@@ -68,7 +68,7 @@ public:
     }
     node(string s, char l){
         name_ = s;
-        visited_= false;
+        visited_= 0;
         value = 2;
         //value[0] = 2;
         //value[1] = 2;
@@ -85,13 +85,19 @@ public:
         value =a;
     }
     bool visited(){
-        return visited_;
+        return visited_== 2;
     }
     void visit(){
-        visited_ =true;
+        visited_ = 2;
+    }
+    bool pushed(){
+    	return visited_ == 1;
+    }
+    void push(){
+    	visited_=1;
     }
     void unvisit(){
-        visited_ = false;
+        visited_ = 0;
     	value = 2; 
 	}
     string name(){
@@ -146,7 +152,7 @@ public:
     	 	return DONT_CARE;
     }
 };
-int usatEdges;
+float usatEdges= 0;
 class graph{
     std::map < string ,node* > nodes;
 	typedef std::map<string ,node*>::iterator itNodes;
@@ -157,70 +163,45 @@ public:
 	}
     bool bfs(node * root, int init){
 		if ( root == NULL ) return true;
-		
-		cout<<"new root is "<<root->name()<<endl; 
+		//cout<<"new root is "<<root->name()<<endl; 
 		queue< node* > q;
         root->setVal(init);
-        root->visit();
         q.push(root);
-        node* unvisited;
         while(!q.empty()){
             
             node* curr = q.front();
+            
             q.pop();
             //cout<<curr->name()<<" ";
-            
             std::map<string, node::edge> adj = curr->getNeighbours();
-            if (curr->val() == 2){
-	            for(std::map<string, node::edge>::iterator i = adj.begin(); i!=adj.end(); i++){
-	            	node::edge next = i->second;
-               		if(  next.label() != DONT_CARE ){
-	                	if( next.n->val() != 2){
-		                	curr->setVal( satisfy(next.n->val(), next.label() ) ); 	
-	                		//if (satisfy(next.n->val(), next.label()) == 2 ) 
-	                		//	cout<<"error\n";
-	                		break;
-	                	}
-	    				else
-	    					curr->setVal( init );
-	                	
-	                }
-
-	            }
-        	}
+            
             for(std::map<string, node::edge>::iterator i = adj.begin(); i!=adj.end(); i++){
                 node::edge next = i->second;
                 //labeled edge and the node is dont_care then label it
-                if( !next.n->visited()){
+                
+                if( !next.n->visited() && !next.n->pushed() ){
                 	//label unvisited node
 					int satisfying_value =  satisfy(curr->val(), next.label()); 
                   	next.n->setVal(satisfying_value);
                     next.n->component = (satisfying_value==root->val())? root->component:root->component+1;
 					q.push(next.n);
-                }
+					next.n->push();
+			
+				}
                 else{
-                	//check correctness for labeled/visited nodes
-                 	//if some edge is not getting satisfied count unsatisfied edge 
+                	//check satisfaction of back edge
+                 	//if some back edge is not getting satisfied count unsatisfied edge 
 					int satisfyingVal = satisfy(curr->val(), next.label()) ;
-					//if( satisfyingVal != 2 && version == 1) cout<<"\nfound one non dontcare node for abnormal";
-					if ( satisfyingVal == 2 ) ; 
-					else if( next.n->val() == 2){
-						next.n->setVal( satisfyingVal);
-						
-                    	next.n->component = (satisfyingVal==root->val())? root->component:root->component+1;
-						q.push(next.n);
-					}
-					else if(next.n->val() != satisfyingVal ){
-							//cout<<curr->name()<<" "<<curr->val(version)<<"--"<<next.label()<<"-->"<<next.n->name()<<" "<<next.n->val(version);
-							//cout<<endl<<satisfyingVal;
-							usatEdges++;
-							//resetVisit();
-							//return false;
+					if(next.n->val() != satisfyingVal ){
+						usatEdges+=0.5;
+					cout<<curr->name()<<" "<<next.n->name()<<" unstatisfied\nroot is "<<root->name()<<endl;
 					}
 					
                 }
+                
             }
             curr->visit();
+            
             //cout<<curr->name();
         }
         //one tree from the forest completely labeled
@@ -232,7 +213,7 @@ public:
 		return bfs(root, init);
     }
     bool initBfs(int init){
-        node * root = nodes.begin()->second;
+        node * root = nodes["SUMO2"];
         root->component = 0;
 		return bfs(root, init);
     }
@@ -287,6 +268,22 @@ public:
 			fp<<i->second->name()<<"\t"<<i->second->val()<<"\t"<<i->second->component<<endl;//"\t"<<i->second->val(1)<<endl;
 		}
 		fp.close();
+	}
+	void printGraph(char* file){
+		ofstream fp;
+        fp.open(file);
+		if( !fp ){
+			printError("could not open output file for vertex labels");
+		}
+       for(itNodes i = nodes.begin(); i != nodes.end(); i++){
+			std::map<string, node::edge> adj = i->second->getNeighbours();
+        	for(std::map<string, node::edge>::iterator j = adj.begin(); j!=adj.end(); j++){
+                node::edge next = j->second;
+                fp<<i->second->name()<<"\t"<<next.n->name()<<endl;
+       		}
+		}
+       fp.close();
+	
 	}
     /*void printGraph(){
         ofstream fp;
@@ -366,6 +363,7 @@ int main(int argc, char* argv[])
 	cout<<"unsatisfiable = "<<usatEdges<<endl; 
 	cout<<"number of components = "<<g.component_count<<endl;	
 	cout<<"success!\n";
+	//g.printGraph((char*)"test_edges.txt");
     
 
 }
