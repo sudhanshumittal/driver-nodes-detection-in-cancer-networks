@@ -1,0 +1,22 @@
+number of unique nodes is =5814
+getting the correlation values...
+creating graph...
+number of positively correlated pairs = 822
+number of negatively correlated pairs = 790
+traversing the graph now...
+CCT4 VHL unstatisfied
+root is SUMO2
+VHL CCT4 unstatisfied
+root is SUMO2
+CREBBP SMAD3 unstatisfied
+root is SUMO2
+SMAD3 CREBBP unstatisfied
+root is SUMO2
+UBE2D1 BFAR unstatisfied
+root is SUMO2
+BFAR UBE2D1 unstatisfied
+root is SUMO2
+putting the results in file...
+unsatisfiable = 3
+number of components = 426
+success!
