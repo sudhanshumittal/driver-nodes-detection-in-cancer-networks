@@ -465,21 +465,22 @@ void createGraph(graph &g, char* ppi_file, char* edgeLabels, std::map<string, fl
 		char label=getLabel( dataMap, protein1, protein2 ); 
 		if ( label == DONT_CARE )
 				continue;
-		if ( label == NXOR)
-			nxorCount++;
-		else if (label== XOR) 
-			xorCount++;
-
+		
 		//add edge to graph
 		bool added = g.addEdge(protein1,protein2, label);
 		
-		if (added)
+		if (added){
 			fLabel<<protein1<<"\t"<<protein2<<"\t"<<label<<endl;
+			if ( label == NXOR)
+				nxorCount++;
+			else if (label== XOR) 
+				xorCount++;
+		}
 		//cout<<protein1<<endl<<protein2<<endl;
 			 
 	}
-	cout<<"number of positively correlated pairs = "<<nxorCount<<endl;
-	cout<<"number of negatively correlated pairs = "<<xorCount<<endl;
+	cout<<"number of positively correlated pairs in graph created  = "<<nxorCount<<endl;
+	cout<<"number of negatively correlated pairs in created graph  = "<<xorCount<<endl;
 	fp.close();
 	fLabel.close();
 }
