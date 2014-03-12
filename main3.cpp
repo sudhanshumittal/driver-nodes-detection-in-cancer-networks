@@ -519,7 +519,7 @@ void create_component_graph(char* comp_file,  graph &g){
 	//for all edegs in graph, find the components that are connected by this graph, add an edge in component graph for these components
 	ifstream  fin;
 	// TODO change this to make it  more generic
-	fin.open("edges_N_all.txt");
+	fin.open("edges_T_all.txt");
 	
 	bool components_matrix[g.component_count][g.component_count];
 	//intialize component matrix 
