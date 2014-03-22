@@ -11,6 +11,7 @@ create a new ppi file by considereing only toggled edges
 #include <cstdlib>
 #include <limits>
 #include <cmath>
+#include <unordered_map>
 using namespace std;
 
 #define PEARSON_FACTOR 0.5
@@ -458,41 +459,62 @@ char getLabel (std::map<string, float > &dataMap, string pro1, string pro2){
 }
 
 void create_revised_ppi(char* ppi_file, std::map< string, float> &dataMapN, std::map< string, float> &dataMapT){
+	
 	ifstream fp;
 	fp.open(ppi_file);
-	
-	ofstream newppi;
+	ofstream newppi, isolatedNodesFile;
 	newppi.open("revised_ppi.txt");
+	isolatedNodesFile.open("isolated_nodes_in_flip_graph_file.txt");
 	int count = 0;
 	int edges_flipped_count = 0;
 	int edges_unchanged_count = 0;
 	int pos_cor_normal(0), neg_cor_normal(0);
 	int pos_cor_tumor(0); int neg_cor_tumor(0);
 	string pro1, pro2, garbage;
+	unordered_map<string, bool> isIsolated;
 	while(fp.good()){
 		fp>>pro1>>pro2>>garbage;
 		if ( pro1 == pro2 )
 			continue;
 		char label1 = getLabel(dataMapN, pro1, pro2);
-		if (label1 == DONT_CARE )
-			continue; 
 		char label2 = getLabel(dataMapT, pro1, pro2);
-		if (label2 == DONT_CARE )
+		if (label1 == DONT_CARE && label2 == DONT_CARE ) //edge absent in both normal and tumor n/w
 			continue;
+		else if( (label1 != DONT_CARE && label2 == DONT_CARE) || (label1 == DONT_CARE && label2 != DONT_CARE) ){
+			//addition or deletion case
+			//these interacting nodes might be lost because of the removal of edges
+			if ( isIsolated.find(pro1) != isIsolated.end() && isIsolated[pro1] == false )
+				continue;
+			else
+				isIsolated[pro1] = true;
+			if ( isIsolated.find(pro2) != isIsolated.end() && isIsolated[pro2] == false )
+				continue;
+			else
+				isIsolated[pro2] = true;
+		
+		}
 		if(label1 == NXOR)
 			pos_cor_normal++;
 		else 
 			neg_cor_normal++;
 		if(label2 == NXOR)
-				pos_cor_tumor++;
-		else neg_cor_tumor++;
+			pos_cor_tumor++;
+		else 
+			neg_cor_tumor++;
 		if (label1 != label2)
-				edges_flipped_count++;
+			edges_flipped_count++;
 		else
-				edges_unchanged_count++;
+			edges_unchanged_count++;
 		count++;
+		isIsolated[pro1] = false;
+		isIsolated[pro2] = false;
 		newppi<<pro1<<"\t"<<pro2<<"\t"<<garbage<<endl;	
-	}	
+	}
+	for(unordered_map<string, bool>::iterator i= isIsolated.begin(); i!= isIsolated.end(); i++)
+		if (i->second == true)
+			isolatedNodesFile<<i->first<<" ";
+	isolatedNodesFile.close();
+
 	cout<<"number of edges retained = "<<count<<endl;
 	cout<<"number of edges that flipped = "<<edges_flipped_count<<endl;
 	cout<<"number of edges that remained unchanged = "<<edges_unchanged_count<<endl;

@@ -319,14 +319,33 @@ char getLabel (std::map<string, float>  &dataMap, string pro1, string pro2);
 void getCorrelation(std::map< string, float > &dataMap, std::map<string, string> & edges, char* file);
 void createGraph(graph &g, char* ppi_file, char* edgeLabelFile, std::map< string, float> &dataMap);
 void getNodes(std::map<string, string> &edges, char* );
-void create_component_graph(char* component_file, graph &g);
+void create_component_graph(char* component_file, std::map< string , float >, graph &g);
 
+std::map < string ,node* > find_connected_components_flip_only(char* ppi_file, char* correlation_file){
+	cout<<"finding connected components in ppi graph with flipped/unchanged edges only...\n";
+	//getting list of nodes from ppi file
+	std::map<string, string> edges;
+	getNodes(edges, ppi_file);
+	std::map< string , float > dataMap;
+	getCorrelation(dataMap, edges, correlation_file);
+	graph g;
+	char garbFile[] = "garbageFile.txt";
+    createGraph(g, ppi_file, garbFile, dataMap);
+	if(!g.initBfs(1)) { //for normal case
+		cout<<"\nERROR: Normal graph unsatisfiable";
+	}
+	return g.nodes;
+	
+}
 int main(int argc, char* argv[])
 {
-	if(argc < 6){
-		printError("usage ./a.out correlation_file ppi_file_name edge_label_output_file vertex_labels_file component_graph_file\n");
+	if(argc < 7){
+		printError("usage ./a.out correlation_file ppi_file_name edge_label_output_file vertex_labels_file component_graph_file filtered_ppi_with_flipped_only_edges\n");
 	}   
-	
+	std::map < string ,node* > a = find_connected_components_flip_only(argv[6], argv[1]); 
+	for(graph::itNodes i = a.begin(); i!= a.end(); i++)
+		cout<<i->second->component<<endl;
+	return 0;
 	//getting list of nodes from ppi file
 	std::map<string, string> edges;
 	getNodes(edges, argv[2]);
@@ -378,7 +397,7 @@ int main(int argc, char* argv[])
 	
 	//g.printGraph((char*)"test_edges.txt");
     cout<<"creating component graph now\n";
-    create_component_graph(argv[5],  g);
+    create_component_graph(argv[5], dataMap, g);
     
     cout<<"success!\n";
 	
@@ -486,26 +505,7 @@ void createGraph(graph &g, char* ppi_file, char* edgeLabels, std::map<string, fl
 }
 
 char getLabel (std::map<string, float > &dataMap, string pro1, string pro2){
-	
-	/*
-		std::map<string, std::map<string, float> >::iterator it1 = dataMap.find(pro1);
-		std::map<string, std::map<string, float> >::iterator it2 = dataMap.find(pro2);
-		return XOR;
-		float val = 0.0f;
-		if( it1 != dataMap.end()){
-			if ( it2 != dataMap[pro1].end() ){
-				val = dataMap[pro1][pro2];
-			}
-		}
-		else if ( it2 != dataMap.end()){
-			if ( it1 != dataMap[pro2].end() ){
-				val = dataMap[pro2][pro1];
-			}
-
-		}
-		val = val > dataMap[pro2][pro1]? val:dataMap[pro2][pro1];	
-	*/
-	
+		
 	float val = dataMap[pro1+"|"+pro2];
 	float val2 = dataMap[pro2+"|"+pro1];
 	if (val != val2)
@@ -515,7 +515,7 @@ char getLabel (std::map<string, float > &dataMap, string pro1, string pro2){
 	else return DONT_CARE;
 }
 	
-void create_component_graph(char* comp_file,  graph &g){
+void create_component_graph(char* comp_file, std::map< string , float > &dataMap, graph &g){
 	//for all edegs in graph, find the components that are connected by this graph, add an edge in component graph for these components
 	ifstream  fin;
 	// TODO change this to make it  more generic
