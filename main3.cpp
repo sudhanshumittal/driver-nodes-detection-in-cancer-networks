@@ -166,6 +166,8 @@ class graph
 		}
 	    bool bfs(node * root, int init){
 			if ( root == NULL ) return true;
+			component_count++;
+			root->component = component_count;
 			//cout<<"new root is "<<root->name()<<endl; 
 			queue< node* > q;
 	        root->setVal(init);
@@ -186,7 +188,7 @@ class graph
 	                	//label unvisited node
 						int satisfying_value =  satisfy(curr->val(), next.label()); 
 	                  	next.n->setVal(satisfying_value);
-	                    next.n->component = (satisfying_value==root->val())? root->component:root->component+1;
+	                    next.n->component = root->component;
 						q.push(next.n);
 						next.n->push();
 				
@@ -211,14 +213,11 @@ class graph
 	        root = unvisitedNode(); //serch for unlabeled node
 	        if ( root == NULL ) //all nodes have been visited
 	            return true;
-	        component_count+=2;
-			root->component = component_count;
 			return bfs(root, init);
 	    }
 	    bool initBfs(int init){
 	        node * root = nodes["SUMO2"];
-	        root->component = 0;
-			return bfs(root, init);
+	        return bfs(root, init);
 	    }
 	    node* unvisitedNode(){
 	        itNodes i;
@@ -266,7 +265,7 @@ class graph
 			if( !fp ){
 				printError("could not open output file for vertex labels");
 			}
-	        fp<<"number_of_components "<<component_count/2 + 1 <<endl;
+	        fp<<"number_of_components "<<component_count<<endl;
 			for(itNodes i = nodes.begin(); i != nodes.end(); i++){
 				fp<<i->second->name()<<"\t"<<i->second->val()<<"\t"<<i->second->component<<endl;//"\t"<<i->second->val(1)<<endl;
 			}
@@ -280,10 +279,12 @@ class graph
 			}
 	       for(itNodes i = nodes.begin(); i != nodes.end(); i++){
 				std::map<string, node::edge> adj = i->second->getNeighbours();
+	        	fp<<i->first<<"\t";
 	        	for(std::map<string, node::edge>::iterator j = adj.begin(); j!=adj.end(); j++){
 	                node::edge next = j->second;
-	                fp<<i->second->name()<<"\t"<<next.n->name()<<endl;
+	                fp<<next.n->name()<<"\t";
 	       		}
+	       		fp<<endl;
 			}
 	       fp.close();
 		
@@ -319,9 +320,9 @@ char getLabel (std::map<string, float>  &dataMap, string pro1, string pro2);
 void getCorrelation(std::map< string, float > &dataMap, std::map<string, string> & edges, char* file);
 void createGraph(graph &g, char* ppi_file, char* edgeLabelFile, std::map< string, float> &dataMap);
 void getNodes(std::map<string, string> &edges, char* );
-void create_component_graph(char* component_file, std::map< string , float >, graph &g);
-
-std::map < string ,node* > find_connected_components_flip_only(char* ppi_file, char* correlation_file){
+void create_component_graph(char* ppi_file, char* comp_file,  std::map< string , float > &dataMap, std::map < string ,int > &nodeCCList);
+int component_counter;
+std::map < string ,int > find_connected_components_flip_only(char* ppi_file, char* correlation_file, char* isolated_nodes_file){
 	cout<<"finding connected components in ppi graph with flipped/unchanged edges only...\n";
 	//getting list of nodes from ppi file
 	std::map<string, string> edges;
@@ -334,18 +335,37 @@ std::map < string ,node* > find_connected_components_flip_only(char* ppi_file, c
 	if(!g.initBfs(1)) { //for normal case
 		cout<<"\nERROR: Normal graph unsatisfiable";
 	}
-	return g.nodes;
+	//get components for each node in flip-only graph
+	std::map < string ,int > nodeCCList;
+	for(graph::itNodes i = g.nodes.begin(); i != g.nodes.end(); i++ )
+		nodeCCList[i->first] = i->second->component;
+	
+	cout<<"non-isolated components = "<<g.component_count<<endl;
+	//assuming each isolated node as a new connected component add them too to nodeCCList
+	ifstream fin ;
+	fin.open(isolated_nodes_file);
+	int counter = g.component_count;
+	while(fin.good()){
+		counter++;
+		string protein;
+		fin>>protein;
+		nodeCCList[protein] = counter;
+	}
+	cout<<"total connected components(including isoalted nodes) = "<<counter<<endl;
+	component_counter = counter;
+	return nodeCCList;
 	
 }
 int main(int argc, char* argv[])
 {
-	if(argc < 7){
-		printError("usage ./a.out correlation_file ppi_file_name edge_label_output_file vertex_labels_file component_graph_file filtered_ppi_with_flipped_only_edges\n");
+	if(argc < 8){
+		printError("usage ./a.out correlation_file ppi_file_name edge_label_output_file vertex_labels_file component_graph_file filtered_ppi_with_flipped_only_edges isolated_nodes_file\n");
 	}   
-	std::map < string ,node* > a = find_connected_components_flip_only(argv[6], argv[1]); 
-	for(graph::itNodes i = a.begin(); i!= a.end(); i++)
-		cout<<i->second->component<<endl;
-	return 0;
+	/*stores connected component of each protein in flip-only graph (isloated nodes included)*/
+	std::map < string ,int > nodeCCList = find_connected_components_flip_only(argv[6], argv[1], argv[7]); 
+	/*for(std::map < string ,int >::iterator i = nodeCCList.begin(); i!= nodeCCList.end(); i++)
+		cout<<i->first<<" "<<i->second<<endl;
+	*/
 	//getting list of nodes from ppi file
 	std::map<string, string> edges;
 	getNodes(edges, argv[2]);
@@ -357,47 +377,26 @@ int main(int argc, char* argv[])
 	cout<<"getting the correlation values...\n";
 	std::map< string , float > dataMap;
 	getCorrelation(dataMap, edges, argv[1]);
-	
 	/*
-		cout<<"number of nodes = "<<dataMap.size()<<endl;
-		int N(0), X(0), D(0);
-		for ( std::map<string, std::map<string, float> >::iterator i = dataMap.begin(); i!=dataMap.end(); i++){
-			//cout<<i->first<<"->";
-			for ( std::map<string, float>::iterator j = i->second.begin(); j!=i->second.end(); j++){
-				if(j->second >=PEARSON_FACTOR)					
-					N++; 
-				else if (j->second <=-PEARSON_FACTOR)
-					X++;
-				else
-					D++;
-				
-			}
-			//cout<<endl;
-		}
-		cout<<"negative correlation (XOR) = "<<X<<endl;
-		cout<<"positive correlation (NXOR) = "<<N<<endl;
-		cout<<"negative correlation (DONT_CARE) = "<<D<<endl;
-	*/
-	
 	cout<<"creating graph...\n";
-	
 	graph g;
     createGraph(g, argv[2], argv[3], dataMap);
 	
 	cout<<"traversing the graph now...\n";
-	
 	if(!g.initBfs(1)) { //for normal case
 		cout<<"\nERROR: Normal graph unsatisfiable";
 		return 1;
 	}
-	cout<<"putting the results in file...\n";
+	
+	cout<<"putting the satisfying assignment results in file..."<<argv[4]<<"\n";
 	g.printNodes(argv[4]);
 	cout<<"unsatisfiable = "<<usatEdges<<endl; 
 	cout<<"number of components = "<<g.component_count<<endl;	
 	
 	//g.printGraph((char*)"test_edges.txt");
+    */
     cout<<"creating component graph now\n";
-    create_component_graph(argv[5], dataMap, g);
+    create_component_graph(argv[2], argv[5], dataMap, nodeCCList);
     
     cout<<"success!\n";
 	
@@ -515,43 +514,69 @@ char getLabel (std::map<string, float > &dataMap, string pro1, string pro2){
 	else return DONT_CARE;
 }
 	
-void create_component_graph(char* comp_file, std::map< string , float > &dataMap, graph &g){
+void create_component_graph(char* ppi_file, char* comp_file, std::map< string , float > &dataMap, std::map < string ,int > &nodeCCList){
+	/*SEEMS THAT EDGES ARE NOT GETTING ADDED PROPERLY*/
+
 	//for all edegs in graph, find the components that are connected by this graph, add an edge in component graph for these components
 	ifstream  fin;
-	// TODO change this to make it  more generic
-	fin.open("edges_T_all.txt");
+	cout<<component_counter<<endl;
 	
-	bool components_matrix[g.component_count][g.component_count];
-	//intialize component matrix 
-	for (int i(0); i<g.component_count; i++)
-		for (int j(0); j<g.component_count; j++)
-			components_matrix[i][j] = false;
+	std::map<int, bool> components_matrix[component_counter];// =[component_counter][component_counter];
 	//add edges in component graph
+	graph g;
+	fin.open(ppi_file);
+	stringstream s;
+			
 	while(fin.good()){
 		string protein1, protein2, garbage;
 		fin>>protein1>>protein2>>garbage;
-		cout<<protein1<<" "<<protein2<<" "<<garbage<<endl;
-		if (g.nodes.find(protein1) == g.nodes.end() || g.nodes.find(protein2) == g.nodes.end()){
+		//cout<<protein1<<" "<<protein2<<" "<<garbage<<endl;
+		if (protein1 == protein2)
 			continue;
-		}
-		int c1 = g.nodes[protein1]->component;
-		int c2 = g.nodes[protein2]->component;
-		if( c1/2 != c2/2 ){
-		//	cout<<c1<<" "<<c2<<endl;
-			components_matrix[c1/2][c2/2] = true;
-			components_matrix[c2/2][c1/2] = true;
-		
+		if (getLabel(dataMap, protein1, protein2) == DONT_CARE )
+			continue;
+		if (nodeCCList.find(protein1) == nodeCCList.end() || nodeCCList.find(protein2) == nodeCCList.end() ) 
+			printError("A significantly interaction"+protein1+" "+protein2+" is absent from the connected components of flip-graph \n");
+		int c1 = nodeCCList[protein1];
+		int c2 = nodeCCList[protein2];
+		if ( c1 >= component_counter || c2>= component_counter )
+			printError("component id out of bounds\n"); 
+		if( c1 != c2 ){
+			string cc1, cc2;
+			s<<c1;//>>" ">>c2;
+			s>>cc1;//<<p2;
+			s<<c2;//>>" ">>c2;
+			s>>cc2;//<<p2;
+			cout<<cc1<<" "<<cc2<<endl;
+			g.addEdge(cc1, cc2, NXOR);
+			s.clear();
 		}
 	}
 	fin.close();
+	char file[] = "testing_component_graph_normal.txt";
+	g.printGraph(file);
+	return;
+	if (!g.initBfs(0)){
+		printError("couldn't satisfy the component graph !somethign not right");
+	}
 	//output the compoennt graph adjacency matriux into file
 	ofstream fout;
 	fout.open(comp_file);
-	for (int i(0); i<g.component_count; i++)
+
+	fout<<"number of components in fip-graph= "<<g.component_count<<endl;
+	cout<<"number of components in fip-graph= "<<g.component_count<<endl;
+	for(graph::itNodes i= g.nodes.begin(); i != g.nodes.end(); i++){
+		fout<<i->first<<" "<<i->second->component<<endl;
+	}
+	/*
+	for (int i(0); i<component_counter; i++)
 	{
-		for (int j(0); j<g.component_count; j++)
-			fout<<components_matrix[i][j]<<" ";
+		fout<<i<<" ";
+		for (std::map<int, bool>::iterator j = components_matrix[i].begin()  ; j != components_matrix[i].end(); j++)
+			fout<<j->first<<" ";
 		fout<<endl;
 	}
+	*/
 	fout.close();
+	
 }

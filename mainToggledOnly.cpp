@@ -302,8 +302,8 @@ void create_revised_ppi(char*, std::map< string, float> &dataMapN, std::map< str
 	
 int main(int argc, char* argv[])
 {
-	if(argc < 6){
-		printError("usage ./a.out correlation_file_normal  ppi_file_name   edge_label_output_file   vertex_labels_file   correlation_file_cancer\n");
+	if(argc < 4){
+		printError("usage ./a.out correlation_file_normal  ppi_file_name correlation_file_cancer\n");
 	}   
 	
 	//getting list of nodes from ppi file
@@ -319,7 +319,7 @@ int main(int argc, char* argv[])
 	std::map< string , float > dataMapT;
 	
 	getCorrelation(dataMapN, edges, argv[1]);
-	getCorrelation(dataMapT, edges, argv[5]);
+	getCorrelation(dataMapT, edges, argv[3]);
 	create_revised_ppi(argv[2], dataMapN, dataMapT);
 	return 0;
 	/*
@@ -483,16 +483,14 @@ void create_revised_ppi(char* ppi_file, std::map< string, float> &dataMapN, std:
 		else if( (label1 != DONT_CARE && label2 == DONT_CARE) || (label1 == DONT_CARE && label2 != DONT_CARE) ){
 			//addition or deletion case
 			//these interacting nodes might be lost because of the removal of edges
-			if ( isIsolated.find(pro1) != isIsolated.end() && isIsolated[pro1] == false )
-				continue;
-			else
+			if ( isIsolated.find(pro1) == isIsolated.end() )
 				isIsolated[pro1] = true;
-			if ( isIsolated.find(pro2) != isIsolated.end() && isIsolated[pro2] == false )
-				continue;
-			else
+			if ( isIsolated.find(pro2) == isIsolated.end() )
 				isIsolated[pro2] = true;
-		
+			continue;
 		}
+		//if(label1==DONT_CARE|| label2== DONT_CARE) continue;	
+		
 		if(label1 == NXOR)
 			pos_cor_normal++;
 		else 

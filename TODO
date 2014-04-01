@@ -1,7 +1,18 @@
-1) revide bfs
-so that if a vertex has a labelled edge then it ought to have a label.
-2)
-and  then find themin flips required.
-MINFLIPS
+objective
+to get connected components of flip-graph
 
+step 1. ****DONE****
+get connected components from flip-only graph
+(basically which node is in which connected component)
 
+step2. *****DONE*****
+also find the set of isolated nodes in flip-only graph. these are basically connected components of size one.
+
+step3. *****DONE*****
+create connections between CC's flip-graph using the CC's of flip-only and isolated nodes.
+ 
+step4.	*****DONE*****
+find flips for each connected component of flip-graph
+ 
+step5. 
+Use matlab's existing library for finding the minflip solution 
