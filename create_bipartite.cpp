@@ -329,21 +329,19 @@ int main(int argc, char* argv[])
 	char *edge_information_output_disease = argv[5];
 	char *node_assign_output_normal = argv[6];
 	char *node_assign_output_disease = argv[7];
-	char* bipartite_output = argv[8];
-	//std::map<string, string> edges;
+	char *bipartite_output = argv[8];
+	
 	//datamap stores significant edges of ppi in the given graph  
 	std::map< string , char > dataMap_normal, dataMap_disease;
+	//normal and disease graphs
 	graph gn,gt;
        
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
-	//cout<<"getting information from ppi file...\n";
-	//getNodes(edges, ppi_file);
-	//cout<<"number of unique nodes in ppi are "<<edges.size()<<endl;
 	cout<<"getting the correlation values for normal network ...\n";
 	getCorrelation(dataMap_normal, normal_correlation_file, ppi_file);
 	cout<<"getting the correlation values for disease network ...\n";
 	getCorrelation(dataMap_disease, disease_correlation_file, ppi_file);
-
+	/*verify rest*/
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 	cout<<"constructing normal graph...\n";
     createGraph(gn, ppi_file, edge_information_output_normal, dataMap_normal);
@@ -417,11 +415,9 @@ int main(int argc, char* argv[])
 	{	
 		for(int j(0); j<gt.component_count; j++)
 		{
-			for(int k(0); k<2; k++)	
-				fbp<<bipartite[i][j][k]<<",";
-			fbp<<" ";
+			if(!(bipartite[i][j][0]<=0 && bipartite[i][j][1]<=0))
+				fbp<<i+1<<"\t"<<j+1<<"_\t"<<bipartite[i][j][0]<<"\t"<<bipartite[i][j][1]<<endl;
 		}
-		fbp<<endl;				
 	}
 	fbp.close();			
     cout<<"success!\n";
@@ -448,6 +444,7 @@ void getNodes (std::map<string, string> &edges, char* ppi_file){
 		//fp>>pro1;		
 	}
 }
+/*labels all interactions in PPI file as XOR/XNOR?DONT_CARE using correlation file and stores into into dataMap*/
 void getCorrelation(std::map < string, char> &dataMap, char* correlation_file,char* ppi_file){
 	ifstream fcor, fppi;
 	std::map <string, float> temp_map;
@@ -455,7 +452,7 @@ void getCorrelation(std::map < string, char> &dataMap, char* correlation_file,ch
 	fcor.open(correlation_file);
 	if(!fcor) 
 		printError("could not open "+string(correlation_file)+"\n");
-	
+	/*get all significant correlations fron gene expression data*/
 	while(fcor.good()){
 		string pro1, pro2;
 		float cor;
@@ -489,7 +486,7 @@ void getCorrelation(std::map < string, char> &dataMap, char* correlation_file,ch
 
 	}
 	if (temp_map.size() == 0 )
-		printError("size of temp_map = 0");
+		printError("correlation file not read properly / correlation file empty");
 	fcor.close();
 	int xor_count(0), 	nxor_count(0);
 	fppi.open(ppi_file);
@@ -566,11 +563,11 @@ void createGraph(graph &g, char* ppi_file, char* edgeLabels, std::map<string, ch
 }
 
 char getLabel (std::map<string, float > &correlation_Map, string pro1, string pro2){
-		
+	//TODO check this shit	
 	float val = correlation_Map[pro1+"|"+pro2];
 	float val2 = correlation_Map[pro2+"|"+pro1];
 	if (val != val2)
-		cout<<"error found in get Label"<<endl;
+		cout<<"error found : correlation map inconsistent"<<endl;
 	if(val >=PEARSON_FACTOR) return NXOR;
 	else if (val <=-PEARSON_FACTOR) return XOR;
 	else return DONT_CARE;
