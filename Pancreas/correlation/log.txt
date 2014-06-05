@@ -1,0 +1,2 @@
+total number of interactions in ppi 27573
+number of significant corelations found = 2561
