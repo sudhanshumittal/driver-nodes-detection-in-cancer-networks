@@ -15,7 +15,7 @@ and calculates costs for each pair of nodes in bipartite.
 #include <cstring>
 using namespace std;
 
-#define PEARSON_FACTOR 0.5
+#define PEARSON_FACTOR 0.7
 #define XOR 'x'
 #define NXOR 'n'
 #define TINY_VALUE 1e-20
@@ -157,12 +157,12 @@ class graph
 		bool initBfs(int init){
 			if (nodes.size() == 0 )
 				printError("empty input graph");
-            node* root = unvisitedNode(); //serch for unlabeled node
+            node* root = unvisitedNode(); //search for unlabeled node
 			bool success = true;
     		while(root!=NULL)
     		{	
     			success = success && bfs(root, init);
-	            root = unvisitedNode(); //serch for unlabeled node
+	            root = unvisitedNode(); //search for unlabeled node
 			}
 	        return success;
 	    }
@@ -202,7 +202,7 @@ class graph
 						int satisfyingVal = satisfy(curr->val(), next.label()) ;
 						if(next.n->val() != satisfyingVal ){
 							usatEdges+=0.5;
-						//cout<<curr->name()<<" "<<next.n->name()<<" unstatisfied\nroot is "<<root->name()<<endl;
+							cout<<curr->name()<<" "<<next.n->name()<<" unstatisfied\nroot is "<<root->name()<<endl;
 						}
 						
 	                }
@@ -246,6 +246,7 @@ class graph
 				printError("could not open output file for vertex labels");
 			}
 	        fp<<"number_of_components "<<component_count<<endl;
+			fp<<"Node_name\tsat_assign.\tcomponent_no.\n";
 			for(itNodes i = nodes.begin(); i != nodes.end(); i++){
 				fp<<i->second->name()<<"\t"<<i->second->val()<<"\t"<<i->second->component<<endl;//"\t"<<i->second->val(1)<<endl;
 			}
@@ -276,6 +277,8 @@ char getLabel (std::map<string,float>  &dataMap, string pro1, string pro2);
 void getCorrelation(std::map< string,char > &dataMap, char* file, char* ppi);
 void createGraph(graph &g, char* ppi_file, char* edgeLabelFile, std::map< string,char> &dataMap);
 void getNodes(std::map<string, string> &edges, char* );
+char* filter_ppi(char* ppi_file, char* filtered_ppi , std::map< string,char> &dataMap_normal, std::map< string,char> &dataMap_disease);
+	
 //void create_component_graph(char* ppi_file, char* comp_file,  std::map< string ,char > &dataMap, std::map < string ,int > &nodeCCList);
 //int component_counter;
 /*
@@ -330,7 +333,7 @@ int main(int argc, char* argv[])
 	char *node_assign_output_normal = argv[6];
 	char *node_assign_output_disease = argv[7];
 	char *bipartite_output = argv[8];
-	
+	char filtered_ppi[] = "ppi/temp_ppi";
 	//datamap stores significant edges of ppi in the given graph  
 	std::map< string , char > dataMap_normal, dataMap_disease;
 	//normal and disease graphs
@@ -343,6 +346,8 @@ int main(int argc, char* argv[])
 	getCorrelation(dataMap_disease, disease_correlation_file, ppi_file);
 	/*verify rest*/
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	cout<<"removing useless edges from PPI (insignificant in both graphs)\n";
+	ppi_file =  filter_ppi(ppi_file, filtered_ppi, dataMap_normal, dataMap_disease);
 	cout<<"constructing normal graph...\n";
     createGraph(gn, ppi_file, edge_information_output_normal, dataMap_normal);
 	cout<<"finding satisfactory assignment for the normal graph...\n";
@@ -374,7 +379,7 @@ int main(int argc, char* argv[])
     
 	/////////////////////////////////////////////////////////////////////////////////////////////////////
 	cout<<"creating component graph...\n";
-	int ***bipartite = new int**[gn.component_count];//[gn.component_count][gt.component_count][2]; //0-> unflipped nodes count 1->flipped nodes count 
+	int ***bipartite = new int**[gn.component_count];// cost_equal , 0-> unflipped nodes count,  cost_not_equal 1->flipped nodes count 
 	for(int i(0); i<gn.component_count; i++)
 	{
 		bipartite[i] = new int*[gt.component_count]; 
@@ -394,6 +399,7 @@ int main(int argc, char* argv[])
 		int compN = i->second->component-1;
 		graph::itNodes copyInDisease = gt.nodes.find(pro);
 		if (copyInDisease == gt.nodes.end())
+			//continue;
 			printError("protien present in normal but absent in disease");
 		bool valT = copyInDisease->second->val();
 		int compT = copyInDisease->second->component-1;
@@ -411,6 +417,7 @@ int main(int argc, char* argv[])
 	cout<<"done\nprinting cost values to file "<<bipartite_output<<endl;
 	ofstream fbp;
 	fbp.open(bipartite_output);
+	fbp<<"component_id_U\tcomponent_V\tcost_equal\tcost_not_equal\n";
 	for(int i(0); i<gn.component_count; i++)
 	{	
 		for(int j(0); j<gt.component_count; j++)
@@ -533,10 +540,13 @@ void createGraph(graph &g, char* ppi_file, char* edgeLabels, std::map<string, ch
 	   	fp>>protein1; 	fp>>protein2; fp>>garbage;
 		if(protein1 == protein2)
 			continue;
+		/*
+		These checks are not needed as they have been taking care of while filtering the ppi file
 		if(protein1[2] ==  '/' || protein2[2] == '/' )
 			continue;
 		if( (protein1[0] >= '0' && protein1[0] <= '9') || (protein2[0] >= '0' && protein2[0] <= '9') )
 			continue;
+		*/
 		//find edge label
 		if (dataMap.find(protein1+"|"+protein2) == dataMap.end())
 		{	
@@ -548,14 +558,15 @@ void createGraph(graph &g, char* ppi_file, char* edgeLabels, std::map<string, ch
 		//	printError("label should not have been dont care");
 		if (label != XOR && label != NXOR && label != DONT_CARE)
 				printError("undefined label");
-		//add edge to graph
+		//add edge to graph only if nodes are significantly correlated
+		bool added = false;
 		g.addNode(protein1);	
 		g.addNode(protein2);	
-		bool added = false;
-		if (label!= DONT_CARE )
+		if (label != DONT_CARE )
+		{
 			added = g.addEdge(protein1,protein2, label);
+		}
 		fLabel<<protein1<<"\t"<<protein2<<"\t"<<label<<endl;
-		
 	}
 	fp.close();
 	fLabel.close();
@@ -571,6 +582,30 @@ char getLabel (std::map<string, float > &correlation_Map, string pro1, string pr
 	if(val >=PEARSON_FACTOR) return NXOR;
 	else if (val <=-PEARSON_FACTOR) return XOR;
 	else return DONT_CARE;
+}
+char* filter_ppi(char* ppi_file, char* filtered_ppi, std::map< string,char> &dataMap_normal, std::map< string,char> &dataMap_disease){
+	ifstream fp;
+	ofstream fout;
+	; 
+	string protein1,protein2, garbage;
+
+	fp.open(ppi_file); 
+	fout.open(filtered_ppi);
+	if (!fp || !fout) 
+		printError("could not open either "+string(ppi_file)+" or "+string(filtered_ppi)+"\n");
+	while(fp.good()){
+		//read edges, nodes
+	   	fp>>protein1; 	fp>>protein2; fp>>garbage;
+		if(protein1 == protein2)
+			continue;
+		if (dataMap_normal.find(protein1+"|"+protein2) == dataMap_normal.end() && 
+			dataMap_disease.find(protein1+"|"+protein2) == dataMap_disease.end() )
+			continue;	
+		fout<<protein1<<"\t"<<protein2<<"\t"<<garbage<<endl;
+	}
+	fout.close();
+	fp.close();
+	return filtered_ppi;
 }
 	
 /*void create_component_graph(char* ppi_file, char* comp_file, std::map< string , char > &dataMap, std::map < string ,int > &nodeCCList){

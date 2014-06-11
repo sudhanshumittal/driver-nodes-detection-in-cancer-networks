@@ -1,0 +1,26 @@
+MATLAB
+option of elitism
+=============================================================
+parameters = 
+crossover prob
+mutation prob
+population 100 
+generations 500-1000
+=============================================================
+initial population totally random
+
+repeat 100 times	
+	tournament selection (
+	randomly pick two indiviuals and choose the better one parent 1
+	(eliminate tehe used individuals) repeat for parent 2)/ ranking selection operator / 
+	perform crossover (see performance with single point crossover crossover probaibilty 0.6- 0.8)
+	generate 2 children 
+pointwise mutation/ bitwise mutation  (flip every bit of every child with mutation probab 1/length of string)-
+combine parent and children (200) - called intermediate children
+select best 100 people
+
+save the best, average fitness value for every generation 
+==============================================================
+sadhna paper
+	section 3
+		
