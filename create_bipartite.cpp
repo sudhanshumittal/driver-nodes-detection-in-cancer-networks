@@ -408,7 +408,7 @@ int main(int argc, char* argv[])
 			cout<<"compN="<<compN<<" comptT="<<compT<<" gn.component_count="<<gn.component_count<<" gt.component_count= "<<gt.component_count<<endl;
 			printError("compN or compN too large");
 		}
-		if(valN== valT)
+		if(valN == valT)
 			bipartite[compN][compT][0]++;
 		else
 			bipartite[compN][compT][1]++;
@@ -417,13 +417,13 @@ int main(int argc, char* argv[])
 	cout<<"done\nprinting cost values to file "<<bipartite_output<<endl;
 	ofstream fbp;
 	fbp.open(bipartite_output);
-	fbp<<"component_id_U\tcomponent_V\tcost_equal\tcost_not_equal\n";
+	fbp<<"component_id_U\tcomponent_V\tcost_unequal\tcost_equal\n";
 	for(int i(0); i<gn.component_count; i++)
 	{	
 		for(int j(0); j<gt.component_count; j++)
 		{
 			if(!(bipartite[i][j][0]<=0 && bipartite[i][j][1]<=0))
-				fbp<<i+1<<"\t"<<j+1<<"_\t"<<bipartite[i][j][0]<<"\t"<<bipartite[i][j][1]<<endl;
+				fbp<<i+1<<"\t"<<j+1<<"\t"<<bipartite[i][j][0]<<"\t"<<bipartite[i][j][1]<<endl;
 		}
 	}
 	fbp.close();			
